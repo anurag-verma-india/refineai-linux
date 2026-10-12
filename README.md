@@ -24,38 +24,7 @@ Talks straight to the Gemini API with your own key — no backend, no telemetry.
 > an app add an entry to the system text-selection toolbar and replace the selection in
 > place. **Linux has no equivalent.** So RefineAI here is triggered by a **global keyboard
 > shortcut** you bind yourself, and the result is placed on the **clipboard** (then
-> auto-pasted on a best-effort basis — see [Auto-paste](#auto-paste)). See
-> [`PLAN.md`](./PLAN.md) for the full reasoning and the options that were weighed.
-
-## Table of contents
-
-- [Features](#features)
-- [How it works](#how-it-works)
-- [Requirements](#requirements)
-- [Install on Ubuntu](#install-on-ubuntu)
-- [Usage](#usage)
-  - [Auto-paste](#auto-paste)
-- [Settings & data](#settings--data)
-- [Models](#models)
-- [Privacy](#privacy)
-- [Architecture](#architecture)
-- [Contributing](#contributing)
-- [License](#license)
-
-## Features
-
-- 🪄 **Rewrite anywhere** — works in any app that supports text selection: editors,
-  browsers, chat clients, terminals.
-- ⌨️ **One hotkey** — bind `refineai` to any shortcut in your desktop's keyboard settings;
-  works identically on X11 and Wayland, GNOME/KDE/Sway/others.
-- 🎚️ **Modes** — Coherent, Formal, Concise, Fix grammar — and they're editable in the config.
-- ✏️ **Editable preview** — tweak the result, switch modes, or **Retry** before you commit.
-- 📋 **Clipboard-first** — the result always lands on your clipboard; auto-paste is a
-  best-effort extra where the tools exist.
-- 🕘 **History + recycle bin** — every rewrite is logged locally, soft-deletes go to a
-  recycle bin, and expired entries are swept after 30 days.
-- 🔐 **Your key, your data** — talks directly to Gemini; nothing else sees your text.
-- 📦 **One static binary** — ~7.7 MB, no Python/Node/WebKit runtime to drag along.
+> auto-pasted on a best-effort basis). See [`PLAN.md`](./PLAN.md) for the full reasoning.
 
 ## How it works
 
@@ -78,6 +47,17 @@ flowchart LR
     style H fill:#059669,stroke:#047857,color:#fff
 ```
 
+## Features
+
+- 🪄 **Rewrite anywhere** — any app with text selection: editors, browsers, chat, terminals.
+- ⌨️ **One hotkey** — bind `refineai` to any shortcut; works on X11 and Wayland alike.
+- 🎚️ **Modes** — Coherent, Formal, Concise, Fix grammar — editable in the config.
+- ✏️ **Editable preview** — tweak the result, switch modes, or **Retry** before you commit.
+- 📋 **Clipboard-first** — the result always lands on your clipboard; auto-paste is a best-effort extra.
+- 🕘 **History + recycle bin** — every rewrite is logged locally, with a 30-day recycle bin.
+- 🔐 **Your key, your data** — talks directly to Gemini; nothing else sees your text.
+- 📦 **One static binary** — ~7.7 MB, no Python/Node/WebKit runtime.
+
 ## Requirements
 
 - A **Gemini API key** — free from [Google AI Studio](https://aistudio.google.com/apikey).
@@ -86,60 +66,63 @@ flowchart LR
   - **X11**: `xclip`
 - *(Optional)* an input tool for auto-paste: `ydotool` (Wayland) or `xdotool` (X11).
 
-The binary itself only links glibc and your system's graphics libraries (loaded at
-runtime), so it runs across distros without bundling a toolkit.
+Not sure which session you're on? Run `echo $XDG_SESSION_TYPE` (`wayland` or `x11`).
 
-## Install on Ubuntu
+## Install
 
-Tested against Ubuntu 22.04 / 24.04 (GNOME on Wayland).
+### Quick install (recommended)
 
-**1. Install the runtime tools.**
+One line — downloads the latest prebuilt binary, no Rust toolchain needed:
 
 ```bash
-sudo apt update
+curl -fsSL https://raw.githubusercontent.com/anurag-verma-india/refineai-linux/main/scripts/install.sh | bash
+```
+
+This drops `refineai` on your `PATH` (under `~/.local/bin`) and adds an app icon + menu
+entry — no root required. The installer lives at
+[`scripts/install.sh`](./scripts/install.sh) — read it before piping to your shell if
+you'd rather, or download and run it manually:
+
+```bash
+curl -fsSLO https://raw.githubusercontent.com/anurag-verma-india/refineai-linux/main/scripts/install.sh
+bash install.sh                    # or: bash install.sh --version v0.1.0
+```
+
+First install the clipboard helper for your session:
+
+```bash
 sudo apt install wl-clipboard          # Wayland (Ubuntu default)
-# sudo apt install xclip               # ...or this if you're on an X11 session
+# sudo apt install xclip               # ...or this on an X11 session
 # sudo apt install ydotool             # optional: enables auto-paste on Wayland
 ```
 
-Not sure which session you're on? Run `echo $XDG_SESSION_TYPE` (`wayland` or `x11`).
+Uninstall any time:
 
-**2. Build from source.** You need the Rust toolchain:
+```bash
+curl -fsSL https://raw.githubusercontent.com/anurag-verma-india/refineai-linux/main/scripts/install.sh | bash -s -- --uninstall
+```
+
+### Build from source
+
+You need the Rust toolchain and the build deps:
 
 ```bash
 curl --proto '=https' --tlsv1.2 -sSf https://sh.rustup.rs | sh   # if you don't have Rust
-sudo apt install build-essential libgl1-mesa-dev                 # build deps
-```
+sudo apt install build-essential libgl1-mesa-dev
 
-Then build and install. The easiest path is the bundled script, which builds the release
-binary, drops it on your `PATH`, and adds an app icon + menu entry:
-
-```bash
 git clone https://github.com/anurag-verma-india/refineai-linux.git
 cd refineai-linux
-./install.sh
+./install.sh        # builds + installs; ./install.sh --uninstall to remove
 ```
 
-Uninstall with `./install.sh --uninstall` (your config and history are left in place). Or do
-it by hand:
+Or by hand: `cargo build --release && install -Dm755 target/release/refineai ~/.local/bin/refineai`.
 
-```bash
-cargo build --release
-install -Dm755 target/release/refineai ~/.local/bin/refineai
-```
+### Set up
 
-Make sure `~/.local/bin` is on your `PATH` (it is by default on Ubuntu). Check with
-`refineai --help`.
-
-**3. Add your API key.**
-
-```bash
-refineai --settings
-```
-
+**1. Add your API key** — `refineai --settings` (or launch *RefineAI* from your app menu).
 Paste your Gemini key, pick a model if you like, and hit **Save**.
 
-**4. Bind a global shortcut.** (GNOME / Ubuntu)
+**2. Bind a global shortcut.** (GNOME / Ubuntu)
 
 *Settings → Keyboard → View and Customize Shortcuts → Custom Shortcuts → `+`*
 
@@ -161,94 +144,43 @@ On KDE: *System Settings → Shortcuts → Custom Shortcuts*. On Sway/Hyprland: 
 4. **Replace** puts the text on the clipboard and tries to paste it into your app;
    **Copy** just copies it. `Esc` or **Cancel** closes without touching anything.
 
-### Auto-paste
+## Configuration
 
-"Replace" always copies the result to your clipboard, so you can paste it yourself with
-`Ctrl+V`. It *also* attempts a real paste for you — but that needs an input tool:
+The common toggles, editable in **⚙ Settings** (`refineai --settings`):
 
-- **X11**: install `xdotool` and it works.
-- **Wayland**: needs `ydotool`, which requires a background daemon running as root
-  (`ydotoold`). Without it, Wayland's security model blocks synthetic input, so you'll just
-  press `Ctrl+V` yourself. This is a Wayland limitation, not a RefineAI bug.
-
-## Settings & data
+| Setting | What it does |
+| --- | --- |
+| **Model** | Gemini model id. Defaults to `gemini-3.5-flash-lite` (fast, free tier). |
+| **Low latency** | Sends `thinkingLevel: "minimal"` on Gemini 3 models. |
+| **Direct replace** | Skip the preview — copy as soon as the rewrite arrives. |
+| **Save history** | Log every rewrite (soft-deletes swept after 30 days). |
+| **Debug mode** | Show a live, timestamped activity log inside the popup. |
 
 | What | Where |
 | --- | --- |
 | Config (key, model, modes, toggles) | `~/.config/refineai/config.json` (`0600`) |
 | History log | `~/.local/share/refineai/history.json` |
 
-- **Modes** are editable in the config file — add, remove, or change the prompt for any of
-  them.
-- **Low latency** sends `thinkingLevel: "minimal"` (Gemini 3 models only).
-- **Direct replace** skips the preview and copies as soon as the rewrite arrives.
-- **History** logs every rewrite that returns; soft-deleted entries are purged 30 days
-  later (swept at launch). Turn it off with "Save history". Browse it from the **🕘 History**
-  button: reuse (**Use**), **Copy**, or **Delete** a past rewrite. Deletes go to a **Recycle
-  bin** tab you can **Restore** from (or **Delete forever**).
-- **Debug mode** shows a live, timestamped activity log inside the popup — handy for
-  diagnosing a request that errors or hangs. Your API key is never written to the log.
+**Modes**, model choices, auto-paste, and privacy details are covered in full in
+**[docs/CONFIGURATION.md](./docs/CONFIGURATION.md)**.
 
-## Models
+## Documentation
 
-Free-text in Settings, since Google rotates names. Defaults to `gemini-3.5-flash-lite`
-(fastest, free tier). `gemini-3.6-flash` / `gemini-3.5-flash` also work on the free tier;
-Pro models need billing. Gemini 2.x is retired on new keys.
-
-## Privacy
-
-Text you refine is sent to Google's Gemini API with your key, and nowhere else. The key
-lives in `~/.config/refineai/` with `0600` permissions. Note that Google may use free-tier
-API input to improve their models — don't refine anything sensitive on a free key.
-
-## Architecture
-
-The platform-specific glue is isolated behind one module, and the Gemini protocol is a
-**pure** unit-tested core (request build → parse → sanitize) with no platform types — so it
-ports cleanly and tests without a network or a display server.
-
-```mermaid
-flowchart TD
-    main[main.rs<br/>entry · hotkey target] --> platform[platform.rs<br/>X11/Wayland selection,<br/>clipboard, auto-paste]
-    main --> ui[ui.rs<br/>egui popup]
-    ui --> theme[theme.rs<br/>design tokens, widgets]
-    ui --> refine[refine.rs<br/>settings · API call · history]
-    refine --> gemini[gemini.rs<br/>PURE: build / parse / sanitize]
-    refine --> config[config.rs<br/>load / save config]
-    refine --> history[history.rs<br/>JSON log · soft-delete · purge]
-    refine --> debuglog[debuglog.rs<br/>thread-safe activity log]
-
-    style gemini fill:#7c3aed,stroke:#5b21b6,color:#fff
-    style platform fill:#2563eb,stroke:#1e40af,color:#fff
-```
-
-```
-refineai-linux/
-├── Cargo.toml
-├── PLAN.md              # design doc: why this shape, options weighed
-├── install.sh          # per-user install/uninstall + .desktop entry
-├── assets/refineai.svg # app icon
-└── src/
-    ├── main.rs          # entry: read selection → popup
-    ├── gemini.rs        # PURE request build + parse + sanitize (unit-tested)
-    ├── refine.rs        # settings + API call + history, shared
-    ├── platform.rs      # X11/Wayland: read selection, clipboard, auto-paste
-    ├── history.rs       # JSON log, soft-delete, restore, 30-day purge
-    ├── config.rs        # config load/save
-    ├── debuglog.rs      # thread-safe activity log for debug mode
-    ├── theme.rs         # design tokens + reusable gradient widgets
-    └── ui.rs            # the egui popup
-```
+- **[Configuration & data](./docs/CONFIGURATION.md)** — all settings, modes, models, history, auto-paste, privacy.
+- **[Architecture](./docs/ARCHITECTURE.md)** — module map and the popup state machine.
+- **[Releasing](./docs/RELEASING.md)** — build and publish a release on GitHub.
+- **[Packaging for APT](./docs/PACKAGING-APT.md)** — ship to Ubuntu/Debian via `.deb`, PPA, or your own repo.
+- **[PLAN.md](./PLAN.md)** — the design doc: why this shape, options weighed.
 
 ## Contributing
 
-Contributions are welcome! To get started:
+Contributions are welcome!
 
 ```bash
 git clone https://github.com/anurag-verma-india/refineai-linux.git
 cd refineai-linux
 cargo build
-cargo test        # run the unit tests (the gemini core is fully tested)
+cargo test        # the gemini core is fully unit-tested
 ```
 
 A few pointers:
@@ -258,6 +190,23 @@ A few pointers:
 - Run `cargo fmt` and `cargo clippy` before opening a PR.
 - Found a bug or have an idea? Please
   [open an issue](https://github.com/anurag-verma-india/refineai-linux/issues).
+
+## Releasing (maintainers)
+
+Releases publish a prebuilt binary to GitHub so users get it from the one-line installer
+above. [`release.sh`](./release.sh) does the whole flow — bump the version, build, test,
+tag, push, and publish — taking the details as arguments (needs `cargo`, `git`, and an
+authenticated [GitHub CLI](https://cli.github.com/)):
+
+```bash
+./release.sh 0.1.0                                   # version only
+./release.sh 0.1.0 --notes "First release" --aarch64 # title/notes/arch, etc.
+./release.sh --help                                  # all options
+```
+
+The flow — and the manual steps if you'd rather not use `gh` — is documented in
+**[docs/RELEASING.md](./docs/RELEASING.md)**. To ship through `apt`, see
+**[docs/PACKAGING-APT.md](./docs/PACKAGING-APT.md)**.
 
 ## License
 
