@@ -10,22 +10,23 @@ asset names below must match what the script expects.
 
 ## TL;DR — one command
 
-[`release.sh`](../release.sh) does the whole flow — bump, build, test, tag, push,
-and publish — taking the details as arguments. It needs `cargo`, `git`, and the
-authenticated [GitHub CLI](https://cli.github.com/) (`gh auth login`).
+[`scripts/release.sh`](../scripts/release.sh) does the whole flow — bump, build,
+test, tag, push, and publish — taking the details as arguments. It needs `cargo`,
+`git`, and the authenticated [GitHub CLI](https://cli.github.com/) (`gh auth login`).
+Run it from the repo root:
 
 ```bash
 # Simplest: version only (title + notes auto-generated)
-./release.sh 0.1.0
+scripts/release.sh 0.1.0
 
 # With a title and notes, plus an aarch64 build, no prompt
-./release.sh 0.1.0 \
+scripts/release.sh 0.1.0 \
   --title "RefineAI v0.1.0" \
   --notes "First public release." \
   --aarch64 --yes
 ```
 
-`./release.sh --help` lists every flag (`--notes-file`, `--draft`,
+`scripts/release.sh --help` lists every flag (`--notes-file`, `--draft`,
 `--prerelease`, `--skip-tests`, `--no-push`, `-y/--yes`). The rest of this doc
 is the manual flow it automates — read it to understand each step, to publish
 without `gh`, or to debug a release.
@@ -138,8 +139,3 @@ curl -fsSL .../scripts/install.sh | bash -s -- --uninstall
 - [ ] tag `vX.Y.Z` pushed
 - [ ] GitHub Release created with the binary asset(s) attached
 - [ ] one-line install verified on a clean machine
-
-## Packaging for APT
-
-Shipping to Ubuntu/Debian users through `apt` is a separate track — see
-[`docs/PACKAGING-APT.md`](./PACKAGING-APT.md).

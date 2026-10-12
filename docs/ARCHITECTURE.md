@@ -23,13 +23,13 @@ flowchart TD
 ```
 refineai-linux/
 ├── Cargo.toml
-├── PLAN.md              # design doc: why this shape, options weighed
-├── install.sh          # build-from-source install/uninstall + .desktop entry
-├── release.sh          # cut + publish a GitHub Release (for maintainers)
+├── README.md
 ├── scripts/
-│   └── install.sh       # one-line installer: downloads a prebuilt release
+│   ├── install.sh       # one-line installer: downloads a prebuilt release + binds the hotkey
+│   ├── build-install.sh # build from source + install + bind the hotkey
+│   └── release.sh       # cut + publish a GitHub Release (for maintainers)
 ├── assets/refineai.svg # app icon
-├── docs/               # architecture, configuration, releasing, packaging
+├── docs/               # architecture, configuration, releasing, design (PLAN.md)
 └── src/
     ├── main.rs          # entry: read selection → popup
     ├── gemini.rs        # PURE request build + parse + sanitize (unit-tested)
@@ -52,6 +52,6 @@ the popup never gets stuck on "Refining…".
 
 ## Design notes
 
-See [`PLAN.md`](../PLAN.md) for the full reasoning behind this shape — in
+See [`PLAN.md`](./PLAN.md) for the full reasoning behind this shape — in
 particular why Linux uses a global hotkey + clipboard rather than the in-place
 text replacement the Android app gets from `ACTION_PROCESS_TEXT`.

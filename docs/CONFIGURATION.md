@@ -94,7 +94,7 @@ an input tool:
   not a RefineAI bug.
 
 Clipboard itself uses `wl-clipboard` (Wayland) or `xclip` (X11) — one of these
-is required; see the README [Requirements](../README.md#requirements).
+is required; see the README [Install](../README.md#install) section.
 
 ## Privacy
 
