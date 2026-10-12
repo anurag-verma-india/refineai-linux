@@ -1,20 +1,82 @@
+<div align="center">
+
+<img src="assets/refineai.svg" alt="RefineAI logo" width="96" height="96" />
+
 # RefineAI for Linux
 
-Rewrite selected text with Gemini from a small floating popup — anywhere on the Linux
-desktop.
+**Rewrite selected text with Gemini from a small floating popup — anywhere on the Linux desktop.**
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-blue.svg)](#license)
+[![Built with Rust](https://img.shields.io/badge/built%20with-Rust-orange.svg)](https://www.rust-lang.org/)
+[![Platform: Linux](https://img.shields.io/badge/platform-Linux%20(X11%20%7C%20Wayland)-informational.svg)](#requirements)
+[![Single binary ~7.7 MB](https://img.shields.io/badge/binary-~7.7%20MB-success.svg)](#)
+
+</div>
 
 Highlight text in any app → press your hotkey → a popup appears with the rewrite. Edit it,
 switch modes, retry, then **Replace** (copies it back, pastes into the app) or **Copy**.
 
 A single self-contained Rust binary (~7.7 MB), built on [egui](https://github.com/emilk/egui).
-Talks straight to the Gemini API with your own key — no backend.
+Talks straight to the Gemini API with your own key — no backend, no telemetry.
 
+> [!NOTE]
 > **How this differs from the Android app.** Android has `ACTION_PROCESS_TEXT`, which lets
 > an app add an entry to the system text-selection toolbar and replace the selection in
 > place. **Linux has no equivalent.** So RefineAI here is triggered by a **global keyboard
 > shortcut** you bind yourself, and the result is placed on the **clipboard** (then
 > auto-pasted on a best-effort basis — see [Auto-paste](#auto-paste)). See
 > [`PLAN.md`](./PLAN.md) for the full reasoning and the options that were weighed.
+
+## Table of contents
+
+- [Features](#features)
+- [How it works](#how-it-works)
+- [Requirements](#requirements)
+- [Install on Ubuntu](#install-on-ubuntu)
+- [Usage](#usage)
+  - [Auto-paste](#auto-paste)
+- [Settings & data](#settings--data)
+- [Models](#models)
+- [Privacy](#privacy)
+- [Architecture](#architecture)
+- [Contributing](#contributing)
+- [License](#license)
+
+## Features
+
+- 🪄 **Rewrite anywhere** — works in any app that supports text selection: editors,
+  browsers, chat clients, terminals.
+- ⌨️ **One hotkey** — bind `refineai` to any shortcut in your desktop's keyboard settings;
+  works identically on X11 and Wayland, GNOME/KDE/Sway/others.
+- 🎚️ **Modes** — Coherent, Formal, Concise, Fix grammar — and they're editable in the config.
+- ✏️ **Editable preview** — tweak the result, switch modes, or **Retry** before you commit.
+- 📋 **Clipboard-first** — the result always lands on your clipboard; auto-paste is a
+  best-effort extra where the tools exist.
+- 🕘 **History + recycle bin** — every rewrite is logged locally, soft-deletes go to a
+  recycle bin, and expired entries are swept after 30 days.
+- 🔐 **Your key, your data** — talks directly to Gemini; nothing else sees your text.
+- 📦 **One static binary** — ~7.7 MB, no Python/Node/WebKit runtime to drag along.
+
+## How it works
+
+```mermaid
+flowchart LR
+    A([Select text<br/>in any app]) --> B{{Press your<br/>global hotkey}}
+    B --> C[refineai launches]
+    C --> D[Read PRIMARY<br/>selection]
+    D --> E[Floating egui popup]
+    E --> F[[Gemini API<br/>your key]]
+    F --> E
+    E -->|Replace| G[Copy to clipboard<br/>+ best-effort auto-paste]
+    E -->|Copy| H[Copy to clipboard]
+    E -->|Esc / Cancel| I([Close, touch nothing])
+    E -.logged.-> J[(Local history)]
+
+    style A fill:#2563eb,stroke:#1e40af,color:#fff
+    style F fill:#7c3aed,stroke:#5b21b6,color:#fff
+    style G fill:#059669,stroke:#047857,color:#fff
+    style H fill:#059669,stroke:#047857,color:#fff
+```
 
 ## Requirements
 
@@ -53,6 +115,7 @@ Then build and install. The easiest path is the bundled script, which builds the
 binary, drops it on your `PATH`, and adds an app icon + menu entry:
 
 ```bash
+git clone https://github.com/anurag-verma-india/refineai-linux.git
 cd refineai-linux
 ./install.sh
 ```
@@ -138,7 +201,26 @@ Text you refine is sent to Google's Gemini API with your key, and nowhere else. 
 lives in `~/.config/refineai/` with `0600` permissions. Note that Google may use free-tier
 API input to improve their models — don't refine anything sensitive on a free key.
 
-## Project layout
+## Architecture
+
+The platform-specific glue is isolated behind one module, and the Gemini protocol is a
+**pure** unit-tested core (request build → parse → sanitize) with no platform types — so it
+ports cleanly and tests without a network or a display server.
+
+```mermaid
+flowchart TD
+    main[main.rs<br/>entry · hotkey target] --> platform[platform.rs<br/>X11/Wayland selection,<br/>clipboard, auto-paste]
+    main --> ui[ui.rs<br/>egui popup]
+    ui --> theme[theme.rs<br/>design tokens, widgets]
+    ui --> refine[refine.rs<br/>settings · API call · history]
+    refine --> gemini[gemini.rs<br/>PURE: build / parse / sanitize]
+    refine --> config[config.rs<br/>load / save config]
+    refine --> history[history.rs<br/>JSON log · soft-delete · purge]
+    refine --> debuglog[debuglog.rs<br/>thread-safe activity log]
+
+    style gemini fill:#7c3aed,stroke:#5b21b6,color:#fff
+    style platform fill:#2563eb,stroke:#1e40af,color:#fff
+```
 
 ```
 refineai-linux/
@@ -158,5 +240,25 @@ refineai-linux/
     └── ui.rs            # the egui popup
 ```
 
-Run the tests with `cargo test`.
+## Contributing
+
+Contributions are welcome! To get started:
+
+```bash
+git clone https://github.com/anurag-verma-india/refineai-linux.git
+cd refineai-linux
+cargo build
+cargo test        # run the unit tests (the gemini core is fully tested)
 ```
+
+A few pointers:
+
+- Keep `gemini.rs` **pure** — no platform or network types — so it stays unit-testable.
+- Put anything X11/Wayland-specific behind `platform.rs`.
+- Run `cargo fmt` and `cargo clippy` before opening a PR.
+- Found a bug or have an idea? Please
+  [open an issue](https://github.com/anurag-verma-india/refineai-linux/issues).
+
+## License
+
+Released under the [MIT License](./LICENSE). © 2026 Anurag Verma.
