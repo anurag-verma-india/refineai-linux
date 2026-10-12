@@ -48,14 +48,16 @@ fn run_stdin(cmd: &str, args: &[&str], input: &str) -> std::io::Result<()> {
     Ok(())
 }
 
+/// Whether a command is installed. We only care that it spawns at all — `status`
+/// is `Err` when the binary is missing and `Ok` (whatever the exit code) when it
+/// runs, so the exit code is deliberately ignored.
 fn exists(cmd: &str) -> bool {
     Command::new(cmd)
         .arg("--help")
         .stdout(Stdio::null())
         .stderr(Stdio::null())
         .status()
-        .map(|s| s.success() || true) // presence is what we're testing, not exit code
-        .unwrap_or(false)
+        .is_ok()
 }
 
 /// Read the highlighted text: the PRIMARY selection first (no copy needed),

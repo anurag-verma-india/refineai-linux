@@ -8,9 +8,10 @@ use crate::history;
 use crate::platform;
 use crate::refine;
 use crate::theme;
+use crate::util::unix_secs;
 use std::sync::mpsc::{channel, Receiver, TryRecvError};
 use std::thread;
-use std::time::{Duration, SystemTime, UNIX_EPOCH};
+use std::time::Duration;
 
 enum View {
     NeedKey,
@@ -44,13 +45,15 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(cfg: Config, original: String) -> Self {
+    /// Shared field initialization; `new` and `settings_only` only differ in the
+    /// starting view and a couple of flags, set by the caller.
+    fn base(cfg: Config, original: String, view: View) -> Self {
         let active_mode = cfg.default_mode;
-        let mut app = App {
+        App {
             cfg,
             original,
             result: String::new(),
-            view: View::Loading,
+            view,
             active_mode,
             rx: None,
             status: None,
@@ -59,7 +62,11 @@ impl App {
             history_items: Vec::new(),
             history_bin: false,
             pending_refine: false,
-        };
+        }
+    }
+
+    pub fn new(cfg: Config, original: String) -> Self {
+        let mut app = App::base(cfg, original, View::Loading);
         if app.cfg.api_key.trim().is_empty() {
             app.view = View::NeedKey;
         } else if app.original.trim().is_empty() {
@@ -74,21 +81,9 @@ impl App {
 
     /// Open straight into settings (used by `refineai --settings`).
     pub fn settings_only(cfg: Config) -> Self {
-        let active_mode = cfg.default_mode;
-        App {
-            cfg,
-            original: String::new(),
-            result: String::new(),
-            view: View::Settings,
-            active_mode,
-            rx: None,
-            status: None,
-            came_from_settings_only: true,
-            log: DebugLog::default(),
-            history_items: Vec::new(),
-            history_bin: false,
-            pending_refine: false,
-        }
+        let mut app = App::base(cfg, String::new(), View::Settings);
+        app.came_from_settings_only = true;
+        app
     }
 
     fn start_refine(&mut self, ctx: &egui::Context) {
@@ -693,11 +688,7 @@ fn truncate(s: &str, max: usize) -> String {
 
 /// A coarse "x ago" label for a unix-seconds timestamp.
 fn time_ago(created_at: u64) -> String {
-    let now = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .map(|d| d.as_secs())
-        .unwrap_or(0);
-    let diff = now.saturating_sub(created_at);
+    let diff = unix_secs().saturating_sub(created_at);
     match diff {
         0..=59 => "just now".to_string(),
         60..=3599 => format!("{}m ago", diff / 60),

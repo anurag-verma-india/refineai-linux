@@ -2,8 +2,8 @@
 //! `~/.config/refineai/config.json`, written with `0600` perms so the key
 //! isn't world-readable.
 
+use crate::store;
 use serde::{Deserialize, Serialize};
-use std::fs;
 use std::path::PathBuf;
 
 #[derive(Serialize, Deserialize, Clone)]
@@ -26,7 +26,6 @@ pub struct Config {
     pub debug: bool,
     pub modes: Vec<Mode>,
     /// Index into `modes` of the mode a fresh popup opens in.
-    #[serde(alias = "active_mode")]
     pub default_mode: usize,
 }
 
@@ -72,17 +71,11 @@ fn default_modes() -> Vec<Mode> {
 
 impl Config {
     pub fn path() -> PathBuf {
-        dirs::config_dir()
-            .unwrap_or_else(|| PathBuf::from("."))
-            .join("refineai")
-            .join("config.json")
+        store::app_path(dirs::config_dir(), "config.json")
     }
 
     pub fn load() -> Config {
-        let mut cfg: Config = match fs::read_to_string(Self::path()) {
-            Ok(s) => serde_json::from_str(&s).unwrap_or_default(),
-            Err(_) => Config::default(),
-        };
+        let mut cfg: Config = store::read(&Self::path());
         if cfg.modes.is_empty() {
             cfg.modes = default_modes();
         }
@@ -93,23 +86,7 @@ impl Config {
     }
 
     pub fn save(&self) -> std::io::Result<()> {
-        let path = Self::path();
-        if let Some(dir) = path.parent() {
-            fs::create_dir_all(dir)?;
-        }
-        let json = serde_json::to_string_pretty(self).unwrap_or_default();
-        fs::write(&path, json)?;
-        set_private(&path);
-        Ok(())
+        // `private`: the config holds the API key, so lock it to the owner.
+        store::write(&Self::path(), self, true)
     }
-
 }
-
-#[cfg(unix)]
-fn set_private(path: &PathBuf) {
-    use std::os::unix::fs::PermissionsExt;
-    let _ = fs::set_permissions(path, fs::Permissions::from_mode(0o600));
-}
-
-#[cfg(not(unix))]
-fn set_private(_path: &PathBuf) {}

@@ -13,10 +13,16 @@ mod gemini;
 mod history;
 mod platform;
 mod refine;
+mod store;
 mod theme;
 mod ui;
+mod util;
 
 use config::Config;
+
+/// Builds the eframe `App` once egui has handed us a `CreationContext`. Boxed so
+/// the selection-reading and settings-only paths can share one `run_native` call.
+type AppBuilder = Box<dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn eframe::App>>;
 
 fn main() -> eframe::Result<()> {
     let args: Vec<String> = std::env::args().skip(1).collect();
@@ -36,19 +42,18 @@ fn main() -> eframe::Result<()> {
     let cfg = Config::load();
     let settings_only = args.iter().any(|a| a == "--settings");
 
-    let app: Box<dyn FnOnce(&eframe::CreationContext<'_>) -> Box<dyn eframe::App>> =
-        if settings_only {
-            Box::new(move |cc| {
-                theme::install(&cc.egui_ctx);
-                Box::new(ui::App::settings_only(cfg))
-            })
-        } else {
-            let selection = platform::read_selection().unwrap_or_default();
-            Box::new(move |cc| {
-                theme::install(&cc.egui_ctx);
-                Box::new(ui::App::new(cfg, selection))
-            })
-        };
+    let app: AppBuilder = if settings_only {
+        Box::new(move |cc| {
+            theme::install(&cc.egui_ctx);
+            Box::new(ui::App::settings_only(cfg))
+        })
+    } else {
+        let selection = platform::read_selection().unwrap_or_default();
+        Box::new(move |cc| {
+            theme::install(&cc.egui_ctx);
+            Box::new(ui::App::new(cfg, selection))
+        })
+    };
 
     let options = eframe::NativeOptions {
         viewport: egui::ViewportBuilder::default()
