@@ -30,6 +30,8 @@
 set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# Repo root is the script's parent dir, so the script works from any cwd.
+REPO_ROOT="$(cd "$SCRIPT_DIR/.." && pwd)"
 REPO="anurag-verma-india/refineai-linux"
 RAW="https://raw.githubusercontent.com/$REPO/main"
 
@@ -86,7 +88,7 @@ done
 gh auth status >/dev/null 2>&1 || die "GitHub CLI not authenticated. Run: gh auth login"
 [ -n "$NOTES_FILE" ] && [ ! -f "$NOTES_FILE" ] && die "notes file not found: $NOTES_FILE"
 
-cd "$SCRIPT_DIR"
+cd "$REPO_ROOT"
 
 git rev-parse --git-dir >/dev/null 2>&1 || die "not inside a git repository."
 if [ -n "$(git status --porcelain --untracked-files=no)" ]; then
