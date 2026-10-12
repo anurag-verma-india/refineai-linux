@@ -2,7 +2,7 @@
 //! Loading → Editing (preview) / Error, plus a Settings view and a NeedKey
 //! prompt when no API key is configured.
 
-use crate::config::Config;
+use crate::config::{Config, Mode};
 use crate::debuglog::DebugLog;
 use crate::history;
 use crate::platform;
@@ -26,6 +26,10 @@ pub struct App {
     original: String,
     result: String,
     view: View,
+    /// Mode selected for the current session. Starts at `cfg.default_mode`; the
+    /// pills in the editing view flip it, but the persisted default is untouched
+    /// unless it's changed in Settings.
+    active_mode: usize,
     rx: Option<Receiver<Result<String, String>>>,
     status: Option<String>,
     came_from_settings_only: bool,
@@ -41,11 +45,13 @@ pub struct App {
 
 impl App {
     pub fn new(cfg: Config, original: String) -> Self {
+        let active_mode = cfg.default_mode;
         let mut app = App {
             cfg,
             original,
             result: String::new(),
             view: View::Loading,
+            active_mode,
             rx: None,
             status: None,
             came_from_settings_only: false,
@@ -68,11 +74,13 @@ impl App {
 
     /// Open straight into settings (used by `refineai --settings`).
     pub fn settings_only(cfg: Config) -> Self {
+        let active_mode = cfg.default_mode;
         App {
             cfg,
             original: String::new(),
             result: String::new(),
             view: View::Settings,
+            active_mode,
             rx: None,
             status: None,
             came_from_settings_only: true,
@@ -92,7 +100,7 @@ impl App {
         self.rx = Some(rx);
         let cfg = self.cfg.clone();
         let text = self.original.clone();
-        let mode = self.cfg.active_mode;
+        let mode = self.active_mode;
         let log = self.log.clone();
         let ctx = ctx.clone();
         thread::spawn(move || {
@@ -290,14 +298,14 @@ impl App {
             ui.spacing_mut().item_spacing = egui::vec2(6.0, 6.0);
             let mut changed = None;
             for (i, m) in self.cfg.modes.iter().enumerate() {
-                if theme::pill(ui, &m.name, self.cfg.active_mode == i).clicked()
-                    && self.cfg.active_mode != i
+                if theme::pill(ui, &m.name, self.active_mode == i).clicked()
+                    && self.active_mode != i
                 {
                     changed = Some(i);
                 }
             }
             if let Some(i) = changed {
-                self.cfg.active_mode = i;
+                self.active_mode = i;
                 self.start_refine(ctx);
             }
         });
@@ -413,6 +421,9 @@ impl App {
             ui.checkbox(&mut self.cfg.debug, "Debug mode (show activity log in the popup)");
 
             ui.add_space(16.0);
+            self.modes_editor(ui);
+
+            ui.add_space(16.0);
             ui.horizontal(|ui| {
                 ui.spacing_mut().item_spacing.x = 8.0;
                 if theme::primary_button(ui, "Save", None).clicked() {
@@ -437,6 +448,89 @@ impl App {
                 .size(11.0),
             );
         });
+    }
+
+    /// The Modes editor: add, rename, re-word, remove, and choose the default
+    /// mode — the one a fresh popup opens in. Each mode is one card.
+    fn modes_editor(&mut self, ui: &mut egui::Ui) {
+        field_label(ui, "Modes");
+        ui.colored_label(
+            theme::SECONDARY,
+            egui::RichText::new(
+                "Rewrite styles shown as pills in the popup. The default is selected when RefineAI opens.",
+            )
+            .size(11.0),
+        );
+        ui.add_space(8.0);
+
+        // Deferred so we don't mutate `modes` while iterating it.
+        enum ModeAct {
+            SetDefault(usize),
+            Remove(usize),
+        }
+        let mut act: Option<ModeAct> = None;
+        let default_mode = self.cfg.default_mode;
+        let can_remove = self.cfg.modes.len() > 1;
+
+        for (i, mode) in self.cfg.modes.iter_mut().enumerate() {
+            theme::card().show(ui, |ui| {
+                ui.set_width(ui.available_width());
+                ui.horizontal(|ui| {
+                    ui.spacing_mut().item_spacing.x = 8.0;
+                    let is_default = default_mode == i;
+                    let label = if is_default { "✓ Default" } else { "Set default" };
+                    if theme::pill(ui, label, is_default).clicked() && !is_default {
+                        act = Some(ModeAct::SetDefault(i));
+                    }
+                    ui.add(
+                        egui::TextEdit::singleline(&mut mode.name)
+                            .desired_width(f32::INFINITY)
+                            .margin(egui::Margin::same(8.0))
+                            .hint_text("Mode name"),
+                    );
+                });
+                ui.add_space(6.0);
+                ui.add(
+                    egui::TextEdit::multiline(&mut mode.prompt)
+                        .desired_width(f32::INFINITY)
+                        .desired_rows(2)
+                        .margin(egui::Margin::same(8.0))
+                        .hint_text("Instruction sent to Gemini with your text"),
+                );
+                ui.add_space(6.0);
+                ui.with_layout(egui::Layout::right_to_left(egui::Align::Center), |ui| {
+                    ui.add_enabled_ui(can_remove, |ui| {
+                        let btn = ui.button("Remove");
+                        let btn = if can_remove {
+                            btn.on_hover_text("Delete this mode")
+                        } else {
+                            btn.on_hover_text("Keep at least one mode")
+                        };
+                        if btn.clicked() {
+                            act = Some(ModeAct::Remove(i));
+                        }
+                    });
+                });
+            });
+            ui.add_space(8.0);
+        }
+
+        if ui.button("+ Add mode").clicked() {
+            self.cfg.modes.push(Mode {
+                name: "New mode".into(),
+                prompt: String::new(),
+            });
+        }
+
+        match act {
+            Some(ModeAct::SetDefault(i)) => self.cfg.default_mode = i,
+            Some(ModeAct::Remove(i)) => {
+                self.cfg.modes.remove(i);
+                self.cfg.default_mode = adjust_index(self.cfg.default_mode, i, self.cfg.modes.len());
+                self.active_mode = adjust_index(self.active_mode, i, self.cfg.modes.len());
+            }
+            None => {}
+        }
     }
 
     fn history_view(&mut self, ctx: &egui::Context, ui: &mut egui::Ui) {
@@ -610,6 +704,17 @@ fn time_ago(created_at: u64) -> String {
         3600..=86399 => format!("{}h ago", diff / 3600),
         _ => format!("{}d ago", diff / 86400),
     }
+}
+
+/// Keep a stored index valid after the item at `removed` is deleted from a list
+/// that now has `len` items: shift down if it sat after the gap, and clamp so it
+/// never points past the end.
+fn adjust_index(idx: usize, removed: usize, len: usize) -> usize {
+    if len == 0 {
+        return 0;
+    }
+    let shifted = if idx > removed { idx - 1 } else { idx };
+    shifted.min(len - 1)
 }
 
 /// A small uppercase field caption above an input.

@@ -23,7 +23,7 @@ Talks straight to the Gemini API with your own key — no backend, no telemetry.
 
 - 🪄 **Rewrite anywhere** — any app with text selection: editors, browsers, chat, terminals.
 - ⌨️ **One hotkey** — the installer binds `Ctrl+Alt+R` for you; rebind it any time.
-- 🎚️ **Modes** — Coherent, Formal, Concise, Fix grammar — editable in the config.
+- 🎚️ **Modes** — Coherent, Formal, Concise, Fix grammar — add, edit, and pick a default in Settings.
 - ✏️ **Editable preview** — tweak the result, switch modes, or **Retry** before you commit.
 - 📋 **Clipboard-first** — the result always lands on your clipboard; auto-paste is a best-effort extra.
 - 🕘 **History + recycle bin** — every rewrite is logged locally, with a 30-day recycle bin.
@@ -114,8 +114,8 @@ Full module map and the popup state machine: **[docs/ARCHITECTURE.md](./docs/ARC
 | `refineai --help` | Usage. |
 
 **Common settings** (in **⚙ Settings**): Gemini **model** (default `gemini-3.5-flash-lite`),
-**low latency**, **direct replace**, **save history**, **debug mode**. **Modes** are edited
-directly in the config JSON.
+**low latency**, **direct replace**, **save history**, **debug mode**, and the **modes**
+themselves — add, rename, re-word, remove, and mark one as the default the popup opens in.
 
 **File locations:**
 

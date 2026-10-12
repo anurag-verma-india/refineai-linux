@@ -25,7 +25,9 @@ pub struct Config {
     /// Show a live activity log inside the popup, for diagnosing failures.
     pub debug: bool,
     pub modes: Vec<Mode>,
-    pub active_mode: usize,
+    /// Index into `modes` of the mode a fresh popup opens in.
+    #[serde(alias = "active_mode")]
+    pub default_mode: usize,
 }
 
 impl Default for Config {
@@ -38,7 +40,7 @@ impl Default for Config {
             save_history: true,
             debug: false,
             modes: default_modes(),
-            active_mode: 0,
+            default_mode: 0,
         }
     }
 }
@@ -84,8 +86,8 @@ impl Config {
         if cfg.modes.is_empty() {
             cfg.modes = default_modes();
         }
-        if cfg.active_mode >= cfg.modes.len() {
-            cfg.active_mode = 0;
+        if cfg.default_mode >= cfg.modes.len() {
+            cfg.default_mode = 0;
         }
         cfg
     }

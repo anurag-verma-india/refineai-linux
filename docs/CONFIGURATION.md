@@ -11,8 +11,8 @@ privacy. The README covers the common toggles; this is the complete picture.
 | History log | `~/.local/share/refineai/history.json` |
 
 The config file is written with `0600` permissions so your API key isn't
-world-readable. Most settings are editable from the in-app **⚙ Settings** panel;
-**modes** are edited directly in the JSON.
+world-readable. Everything — including the **modes** — is editable from the
+in-app **⚙ Settings** panel; the JSON is there if you'd rather edit by hand.
 
 ## Settings
 
@@ -26,6 +26,7 @@ Open with `refineai --settings`, or the **⚙** button in the popup.
 | **Direct replace** | off | Skip the editable preview — refine and copy straight to the clipboard. |
 | **Save history** | on | Log every rewrite that returns. See [History](#history). |
 | **Debug mode** | off | Show a live, timestamped activity log inside the popup. Your API key is never written to the log. |
+| **Modes** | Coherent, Formal, Concise, Fix grammar | Add, rename, re-word, or remove rewrite styles, and mark one as the default. See [Modes](#modes). |
 
 ## config.json
 
@@ -37,7 +38,7 @@ Open with `refineai --settings`, or the **⚙** button in the popup.
   "direct_replace": false,        // skip the preview
   "save_history": true,
   "debug": false,
-  "active_mode": 0,               // index into "modes" below
+  "default_mode": 0,              // index into "modes" below 
   "modes": [
     { "name": "Coherent",    "prompt": "Rewrite the text so it is clear and coherent while keeping the original meaning, tone and language." },
     { "name": "Formal",      "prompt": "Rewrite the text in a polished, professional and formal register, keeping the original meaning and language." },
@@ -50,10 +51,13 @@ Open with `refineai --settings`, or the **⚙** button in the popup.
 ### Modes
 
 Each mode is a `{ name, prompt }` pair shown as a pill in the popup. **Add,
-remove, rename, or re-word** any of them by editing `modes` in the JSON — the
-`prompt` is the instruction sent to Gemini alongside your selected text.
-`active_mode` is the zero-based index of the mode selected by default; if it's
-out of range it falls back to the first mode.
+remove, rename, or re-word** them in the **Modes** section of **⚙ Settings** (or
+by editing `modes` in the JSON) — the `prompt` is the instruction sent to Gemini
+alongside your selected text. Mark one mode as the **default** with its *Set
+default* button; `default_mode` stores its zero-based index, and the popup opens
+in that mode. Switching modes with the pills in the popup only affects the
+current session — it doesn't change the saved default. If `default_mode` is out
+of range it falls back to the first mode. 
 
 ## Models
 
