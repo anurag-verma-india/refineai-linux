@@ -34,6 +34,9 @@ pub struct App {
     history_items: Vec<history::Entry>,
     /// History view showing the recycle bin (soft-deleted) rather than active rows.
     history_bin: bool,
+    /// Set when the app opens straight into Loading: the refine must be kicked
+    /// off on the first `update` frame, once we have an egui `Context`.
+    pending_refine: bool,
 }
 
 impl App {
@@ -49,11 +52,16 @@ impl App {
             log: DebugLog::default(),
             history_items: Vec::new(),
             history_bin: false,
+            pending_refine: false,
         };
         if app.cfg.api_key.trim().is_empty() {
             app.view = View::NeedKey;
         } else if app.original.trim().is_empty() {
             app.view = View::Error("No text selected. Highlight some text, then trigger RefineAI.".into());
+        } else {
+            // Valid key + selection: refine right away. We can't start the worker
+            // here (no egui Context yet), so flag it for the first `update` frame.
+            app.pending_refine = true;
         }
         app
     }
@@ -71,6 +79,7 @@ impl App {
             log: DebugLog::default(),
             history_items: Vec::new(),
             history_bin: false,
+            pending_refine: false,
         }
     }
 
@@ -149,6 +158,14 @@ impl App {
 
 impl eframe::App for App {
     fn update(&mut self, ctx: &egui::Context, _frame: &mut eframe::Frame) {
+        // First frame after opening straight into Loading: start the refine now
+        // that we have a Context. Without this the popup sits on "Refining…"
+        // forever (and the debug panel stays empty, since nothing is logged).
+        if self.pending_refine {
+            self.pending_refine = false;
+            self.start_refine(ctx);
+        }
+
         // Collect any finished background refine.
         if let Some(rx) = &self.rx {
             match rx.try_recv() {
